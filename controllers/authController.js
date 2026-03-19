@@ -1,12 +1,14 @@
 const { supabaseAdmin, supabaseAnon } = require('../config/supabaseClient');
 const { ok, fail } = require('../utils/responseHelpers');
-const { validatePhone, validateRequired } = require('../utils/validators');
+const { validatePhone, validateEmail, validateRequired } = require('../utils/validators');
 
 async function register(req, res, next) {
   try {
     const { full_name, phone, email, password } = req.body;
     const missing = validateRequired(req.body, ['full_name', 'email', 'password']);
     if (missing.length) return fail(res, 'Missing fields', 400, missing);
+    if (!validateEmail(email)) return fail(res, 'Invalid email address', 400);
+    if (password.length < 8) return fail(res, 'Password must be at least 8 characters', 400);
     if (phone && !validatePhone(phone)) return fail(res, 'Invalid phone number', 400);
 
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
