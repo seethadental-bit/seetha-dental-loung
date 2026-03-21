@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = '"Seetha Dental Lounge" <seethadental@gmail.com>';
+const FROM = `"Seetha Dental Lounge" <${process.env.SMTP_FROM}>`;
 const BRAND = '#003f87';
 const APP_URL = process.env.APP_URL || 'https://seethadental.up.railway.app';
 
