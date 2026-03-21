@@ -12,7 +12,7 @@ async function loadQueue() {
   if (!res.success) return showAlert('alert-box', res.message);
 
   const tokens = res.data || [];
-  const current = tokens.find(t => t.status === 'in_progress' || t.status === 'called') || null;
+  const current = tokens.find(t => t.status === 'in_progress') || tokens.find(t => t.status === 'called') || null;
   const queue = tokens.filter(t => t.status === 'waiting' || t.status === 'skipped');
 
   // 1. Render Current Patient
@@ -22,7 +22,7 @@ async function loadQueue() {
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-8 animate-in fade-in slide-in-from-top-4 duration-500">
         <div class="space-y-4">
           <div class="flex items-center gap-4">
-            <span class="text-6xl font-black text-primary tracking-tighter">#${current.token_number}</span>
+            <span class="text-6xl font-black text-primary tracking-tighter">#${formatToken(current)}</span>
             <span class="px-4 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest">In Progress</span>
           </div>
           <div>
@@ -84,7 +84,7 @@ async function loadQueue() {
     <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between group">
       <div class="flex items-center gap-5">
         <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 font-black text-xl group-hover:bg-primary/5 group-hover:text-primary transition-colors">
-          ${t.token_number}
+          ${formatToken(t)}
         </div>
         <div>
           <p class="font-bold text-slate-900">${t.patient?.full_name}</p>
