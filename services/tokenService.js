@@ -43,43 +43,21 @@ async function bookToken({ patientId, doctorId, notes, bookingDate, slotTime }) 
   // Actually, I'll use the notes field to store slot for now to avoid DB migration issues if psql is missing.
   // Wait, I can try to use supabaseAdmin.from().insert() with manual token number calc if needed.
   
-  // Determine session based on time (Morning: < 13:30, Afternoon: >= 13:30)
-  // Clinic hours: 09:30 - 18:00
   const [h, m] = slotTime ? slotTime.split(':').map(Number) : [9, 30];
   const timeVal = h + (m / 60);
   const session = timeVal < 13.5 ? 'Morning' : 'Afternoon';
   const prefix = session === 'Morning' ? 'M-' : 'A-';
+  const fullSlotString = `${session} | ${slotTime}`;
 
-  // Calculate next token number for this doctor, date, AND session
-  // We use the slot_time string prefix 'Morning' or 'Evening' if we want to filter properly,
-  // but better to add a 'session' column. Since we're using slot_time to store 'HH:MM',
-  // we'll filter by time range logic in the query or just prefix the stored slot_time.
-  
-  const { data: maxToken } = await supabaseAdmin
-    .from('tokens')
-    .select('token_number')
-    .eq('doctor_id', doctorId)
-    .eq('booking_date', date)
-    .ilike('slot_time', `${session}%`) // We will store slot_time as "Session | HH:MM"
-    .order('token_number', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  
-  const nextNum = (maxToken?.token_number || 0) + 1;
-
+  // Single RPC: advisory lock + session-based MAX(token_number) + INSERT in one transaction
   const { data: token, error } = await supabaseAdmin
-    .from('tokens')
-    .insert({
-      patient_id: patientId,
-      doctor_id: doctorId,
-      token_number: nextNum,
-      booking_date: date,
-      status: 'waiting',
-      notes: notes,
-      slot_time: `${session} | ${slotTime}` // Store both for easy filtering and display
-    })
-    .select()
-    .single();
+    .rpc('book_token_atomic', {
+      p_patient_id: patientId,
+      p_doctor_id:  doctorId,
+      p_date:       date,
+      p_notes:      notes || null,
+      p_slot_time:  fullSlotString
+    });
 
   if (error) {
     if (error.code === '23505')

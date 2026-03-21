@@ -26,21 +26,32 @@ async function getDashboard(req, res, next) {
 
 async function getUsers(req, res, next) {
   try {
-    const { search, role } = req.query;
+    const { search, role, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
     let query = supabaseAdmin
       .from('profiles')
-      .select('id, full_name, phone, role, is_active, is_banned, created_at')
-      .order('created_at', { ascending: false });
+      .select('id, full_name, phone, role, is_active, is_banned, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
     if (role) query = query.eq('role', role);
-    const { data, error } = await query;
+    if (search) {
+      query = query.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query;
     if (error) return fail(res, error.message, 500);
-    // Filter by search term (name or phone) in JS to avoid full-text complexity
-    const filtered = search
-      ? data.filter(u =>
-          u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-          (u.phone || '').includes(search))
-      : data;
-    return ok(res, filtered);
+
+    return ok(res, {
+      items: data,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(count / limit)
+      }
+    });
   } catch (e) { next(e); }
 }
 
@@ -209,19 +220,31 @@ async function setDoctorAvailability(req, res, next) {
 
 async function getAllTokens(req, res, next) {
   try {
-    const { date, doctor_id } = req.query;
+    const { date, doctor_id, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
     let query = supabaseAdmin
       .from('tokens')
-      .select('*, patient:patient_id(full_name, phone), doctor:doctor_id(display_name)')
+      .select('*, patient:patient_id(full_name, phone), doctor:doctor_id(display_name)', { count: 'exact' })
       .order('booking_date', { ascending: false })
-      .order('token_number', { ascending: true });
+      .order('token_number', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (date) query = query.eq('booking_date', date);
     if (doctor_id) query = query.eq('doctor_id', doctor_id);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) return fail(res, error.message, 500);
-    return ok(res, data);
+
+    return ok(res, {
+      items: data,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(count / limit)
+      }
+    });
   } catch (e) { next(e); }
 }
 

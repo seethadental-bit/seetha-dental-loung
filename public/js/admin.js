@@ -126,6 +126,7 @@ async function viewDoctorQueue(doctorId, name) {
   renderDrawerTokens(res);
 }
 
+// ── DOCTOR MANAGEMENT ──────────────────────────────────────
 // Doctor modal
 function openDoctorModal(id = null) {
   editingDoctorId = id;
@@ -199,6 +200,8 @@ async function saveDoctorForm(e) {
   showAlert('global-alert', editingDoctorId ? 'Doctor updated.' : 'Doctor account created.', 'success');
 }
 
+// ── PATIENT MANAGEMENT ─────────────────────────────────────
+
 // ── Patients ───────────────────────────────────────────────
 async function loadPatients() {
   const search = document.getElementById('patient-search')?.value.trim() || '';
@@ -206,8 +209,10 @@ async function loadPatients() {
   const res = await apiFetch(url);
   if (!res.success) return;
 
-  document.getElementById('patients-tbody').innerHTML = res.data.length
-    ? res.data.map(u => `
+  const items = res.data.items || [];
+
+  document.getElementById('patients-tbody').innerHTML = items.length
+    ? items.map(u => `
       <tr class="hover:bg-slate-50/50 transition-colors group">
         <td class="px-6 py-4 font-bold text-slate-900">${u.full_name}</td>
         <td class="px-6 py-4 text-sm text-slate-600">${u.phone || '—'}</td>
@@ -337,10 +342,12 @@ async function loadTokens() {
   const res = await apiFetch(url);
   if (!res.success) return;
 
-  document.getElementById('tokens-tbody').innerHTML = res.data.length
-    ? res.data.map(t => `
+  const items = res.data.items || [];
+
+  document.getElementById('tokens-tbody').innerHTML = items.length
+    ? items.map(t => `
       <tr class="hover:bg-slate-50/50 transition-colors text-sm">
-        <td class="px-6 py-4"><span class="bg-slate-100 text-slate-700 px-2 py-1 rounded font-mono font-bold text-xs">#${t.token_number}</span></td>
+        <td class="px-6 py-4"><span class="bg-slate-100 text-slate-700 px-2 py-1 rounded font-mono font-bold text-xs">#${formatToken(t)}</span></td>
         <td class="px-6 py-4">
           <div class="flex flex-col">
             <span class="font-bold text-slate-900">${t.patient?.full_name || '—'}</span>
