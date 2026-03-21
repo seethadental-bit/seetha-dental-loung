@@ -25,7 +25,7 @@ async function register(req, res, next) {
       return fail(res, 'Profile creation failed', 500);
     }
 
-    sendWelcome({ to: email, name: full_name.trim() }).catch(() => {});
+    sendWelcome({ to: email, name: full_name.trim() });
 
     return ok(res, { id: authData.user.id }, 'Registration successful', 201);
   } catch (e) { next(e); }

@@ -81,4 +81,10 @@ app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date().toISOStri
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[${isProd ? 'production' : 'development'}] Seetha Dental Lounge running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`[${isProd ? 'production' : 'development'}] Seetha Dental Lounge running on port ${PORT}`);
+  console.log('[email] SMTP_HOST:', process.env.SMTP_HOST || 'NOT SET');
+  console.log('[email] SMTP_USER:', process.env.SMTP_USER || 'NOT SET');
+  console.log('[email] SMTP_FROM:', process.env.SMTP_FROM || 'NOT SET');
+  console.log('[email] APP_URL:', process.env.APP_URL || 'NOT SET');
+});
