@@ -30,7 +30,7 @@ async function sendViaBrevo({ to, subject, html }) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve(JSON.parse(data));
-        else reject(new Error(`Brevo API ${res.statusCode}: ${data}`));
+        else { console.error('[email] Brevo error response:', data); reject(new Error(`Brevo API ${res.statusCode}: ${data}`)); }
       });
     });
     req.on('error', reject);
