@@ -1,23 +1,44 @@
-const nodemailer = require('nodemailer');
+const https = require('https');
 
-const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST,
-  port:   parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_PORT === '465',
-  requireTLS: true,
-  connectionTimeout: 10000,
-  greetingTimeout:   10000,
-  socketTimeout:     15000,
-  tls: { rejectUnauthorized: false, minVersion: 'TLSv1.2' },
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-const FROM = `"Seetha Dental Lounge" <${process.env.SMTP_FROM}>`;
-const BRAND = '#003f87';
 const APP_URL = process.env.APP_URL || 'https://seethadental.up.railway.app';
+const FROM_EMAIL = process.env.SMTP_FROM || 'seethadental@gmail.com';
+const FROM_NAME  = 'Seetha Dental Lounge';
+
+async function sendViaBrevo({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) { console.warn('[email] BREVO_API_KEY not set, skipping'); return; }
+
+  const payload = JSON.stringify({
+    sender:   { name: FROM_NAME, email: FROM_EMAIL },
+    to:       [{ email: to }],
+    subject,
+    htmlContent: html,
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.brevo.com',
+      path:     '/v3/smtp/email',
+      method:   'POST',
+      headers:  {
+        'api-key':       apiKey,
+        'Content-Type':  'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve(JSON.parse(data));
+        else reject(new Error(`Brevo API ${res.statusCode}: ${data}`));
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Request timeout')); });
+    req.write(payload);
+    req.end();
+  });
+}
 
 // ── Shared layout ────────────────────────────────────────────
 function layout(preheader, bodyHtml) {
@@ -338,38 +359,24 @@ function tokenBookingHtml({ name, tokenNumber, doctorName, bookingDate, slotTime
 
 // ── Send helpers ─────────────────────────────────────────────
 async function sendWelcome({ to, name }) {
-  if (!process.env.SMTP_HOST) { console.warn('[email] SMTP_HOST not set, skipping welcome email'); return; }
-  if (!process.env.SMTP_FROM) { console.warn('[email] SMTP_FROM not set, skipping welcome email'); return; }
   try {
-    const info = await transporter.sendMail({
-      from: FROM, to,
-      subject: `Welcome to Seetha Dental Lounge, ${name}!`,
-      html: welcomeHtml(name),
-    });
-    console.log('[email] Welcome sent to', to, '| messageId:', info.messageId);
+    const res = await sendViaBrevo({ to, subject: `Welcome to Seetha Dental Lounge, ${name}!`, html: welcomeHtml(name) });
+    console.log('[email] Welcome sent to', to, '| messageId:', res.messageId);
   } catch (err) {
     console.error('[email] Failed to send welcome to', to, '| error:', err.message);
   }
 }
 
 async function sendTokenConfirmation({ to, name, tokenNumber, doctorName, bookingDate, slotTime, specialty }) {
-  if (!process.env.SMTP_HOST) { console.warn('[email] SMTP_HOST not set, skipping token confirmation'); return; }
-  if (!process.env.SMTP_FROM) { console.warn('[email] SMTP_FROM not set, skipping token confirmation'); return; }
   try {
-    const info = await transporter.sendMail({
-      from: FROM, to,
-      subject: `Token #${tokenNumber} Confirmed — Seetha Dental Lounge`,
-      html: tokenBookingHtml({ name, tokenNumber, doctorName, bookingDate, slotTime, specialty }),
-    });
-    console.log('[email] Token confirmation sent to', to, '| messageId:', info.messageId);
+    const res = await sendViaBrevo({ to, subject: `Token #${tokenNumber} Confirmed — Seetha Dental Lounge`, html: tokenBookingHtml({ name, tokenNumber, doctorName, bookingDate, slotTime, specialty }) });
+    console.log('[email] Token confirmation sent to', to, '| messageId:', res.messageId);
   } catch (err) {
     console.error('[email] Failed to send token confirmation to', to, '| error:', err.message);
   }
 }
 
 async function sendOtpEmail({ to, name, otp }) {
-  if (!process.env.SMTP_HOST) { console.warn('[email] SMTP_HOST not set, skipping OTP email'); return; }
-  if (!process.env.SMTP_FROM) { console.warn('[email] SMTP_FROM not set, skipping OTP email'); return; }
   const body = `
     <div style="text-align:center;padding:20px 0 32px;">
       <p style="margin:0 0 6px;color:#6c757d;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Email Verification</p>
@@ -383,12 +390,8 @@ async function sendOtpEmail({ to, name, otp }) {
     </div>
   `;
   try {
-    const info = await transporter.sendMail({
-      from: FROM, to,
-      subject: `${otp} — Your Seetha Dental Lounge verification code`,
-      html: layout(`Your verification code is ${otp}. Valid for 10 minutes.`, body),
-    });
-    console.log('[email] OTP sent to', to, '| messageId:', info.messageId);
+    const res = await sendViaBrevo({ to, subject: `${otp} — Your Seetha Dental Lounge verification code`, html: layout(`Your verification code is ${otp}. Valid for 10 minutes.`, body) });
+    console.log('[email] OTP sent to', to, '| messageId:', res.messageId);
   } catch (err) {
     console.error('[email] Failed to send OTP to', to, '| error:', err.message);
   }
