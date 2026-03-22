@@ -364,4 +364,31 @@ async function sendTokenConfirmation({ to, name, tokenNumber, doctorName, bookin
   }
 }
 
-module.exports = { sendWelcome, sendTokenConfirmation };
+async function sendOtpEmail({ to, name, otp }) {
+  if (!process.env.SMTP_HOST) { console.warn('[email] SMTP_HOST not set, skipping OTP email'); return; }
+  if (!process.env.SMTP_FROM) { console.warn('[email] SMTP_FROM not set, skipping OTP email'); return; }
+  const body = `
+    <div style="text-align:center;padding:20px 0 32px;">
+      <p style="margin:0 0 6px;color:#6c757d;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Email Verification</p>
+      <h1 style="margin:0 0 12px;color:#003f87;font-family:Georgia,serif;font-size:32px;font-weight:800;">Verify Your Email</h1>
+      <p style="margin:0 auto 32px;color:#555;font-size:15px;line-height:1.8;max-width:400px;">Hi <strong>${name}</strong>, use the code below to complete your registration. It expires in <strong>10 minutes</strong>.</p>
+      <div style="display:inline-block;background:#003f87;border-radius:16px;padding:28px 48px;margin-bottom:28px;">
+        <p style="margin:0 0 6px;color:rgba(255,255,255,0.55);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Your OTP Code</p>
+        <p style="margin:0;color:#ffffff;font-size:52px;font-weight:900;font-family:Georgia,serif;letter-spacing:12px;line-height:1;">${otp}</p>
+      </div>
+      <p style="margin:0;color:#adb5bd;font-size:12px;">If you didn't request this, please ignore this email.</p>
+    </div>
+  `;
+  try {
+    const info = await transporter.sendMail({
+      from: FROM, to,
+      subject: `${otp} — Your Seetha Dental Lounge verification code`,
+      html: layout(`Your verification code is ${otp}. Valid for 10 minutes.`, body),
+    });
+    console.log('[email] OTP sent to', to, '| messageId:', info.messageId);
+  } catch (err) {
+    console.error('[email] Failed to send OTP to', to, '| error:', err.message);
+  }
+}
+
+module.exports = { sendWelcome, sendTokenConfirmation, sendOtpEmail };

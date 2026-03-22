@@ -1,7 +1,62 @@
 const { supabaseAdmin, supabaseAnon } = require('../config/supabaseClient');
 const { ok, fail } = require('../utils/responseHelpers');
 const { validatePhone, validateEmail, validateRequired } = require('../utils/validators');
-const { sendWelcome } = require('../services/emailService');
+const { sendWelcome, sendOtpEmail } = require('../services/emailService');
+
+// In-memory OTP store: email -> { otp, expiry, full_name, phone, password }
+const otpStore = new Map();
+
+async function sendOtp(req, res, next) {
+  try {
+    const { full_name, phone, email, password } = req.body;
+    const missing = validateRequired(req.body, ['full_name', 'email', 'password']);
+    if (missing.length) return fail(res, 'Missing fields', 400, missing);
+    if (!validateEmail(email)) return fail(res, 'Invalid email address', 400);
+    if (password.length < 6) return fail(res, 'Password must be at least 6 characters', 400);
+    if (phone && !validatePhone(phone)) return fail(res, 'Invalid phone number', 400);
+
+    // Check if email already registered
+    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+    if (users.find(u => u.email === email)) return fail(res, 'Email already registered', 400);
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    otpStore.set(email, { otp, expiry: Date.now() + 10 * 60 * 1000, full_name, phone, password });
+
+    await sendOtpEmail({ to: email, name: full_name.trim(), otp });
+    return ok(res, null, 'OTP sent to your email');
+  } catch (e) { next(e); }
+}
+
+async function verifyOtp(req, res, next) {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return fail(res, 'Email and OTP required', 400);
+
+    const record = otpStore.get(email);
+    if (!record) return fail(res, 'OTP expired or not requested', 400);
+    if (Date.now() > record.expiry) { otpStore.delete(email); return fail(res, 'OTP expired', 400); }
+    if (record.otp !== otp.trim()) return fail(res, 'Invalid OTP', 400);
+
+    otpStore.delete(email);
+    const { full_name, phone, password } = record;
+
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+      email, password, email_confirm: true
+    });
+    if (authErr) return fail(res, authErr.message, 400);
+
+    const { error: profileErr } = await supabaseAdmin.from('profiles').insert({
+      id: authData.user.id, full_name: full_name.trim(), phone: phone || null, role: 'patient'
+    });
+    if (profileErr) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return fail(res, 'Profile creation failed', 500);
+    }
+
+    sendWelcome({ to: email, name: full_name.trim() });
+    return ok(res, { id: authData.user.id }, 'Registration successful', 201);
+  } catch (e) { next(e); }
+}
 
 async function register(req, res, next) {
   try {
@@ -77,4 +132,4 @@ async function me(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { register, login, logout, me };
+module.exports = { register, login, logout, me, sendOtp, verifyOtp };

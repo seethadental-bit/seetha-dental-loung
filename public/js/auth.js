@@ -67,12 +67,16 @@ function requireAuth(expectedRole) {
 }
 
 // ---- LOGIN / REGISTER (login.html only) ----
+let _pendingEmail = null;
+
 function switchTab(tab) {
   const loginForm = document.getElementById('login-form');
   const regForm = document.getElementById('register-form');
+  const otpStep = document.getElementById('otp-step');
   if (loginForm) loginForm.style.display = tab === 'login' ? '' : 'none';
   if (regForm) regForm.style.display = tab === 'register' ? '' : 'none';
-  
+  if (otpStep) otpStep.style.display = 'none';
+
   const tabLogin = document.getElementById('tab-login');
   const tabReg = document.getElementById('tab-register');
   if (tabLogin) tabLogin.classList.toggle('auth-mode-active', tab === 'login');
@@ -106,7 +110,6 @@ async function handleLogin(e) {
 async function handleRegister(e) {
   e.preventDefault();
 
-  // Client-side validation
   const name     = document.getElementById('reg-name').value.trim();
   const phone    = document.getElementById('reg-phone').value.trim();
   const email    = document.getElementById('reg-email').value.trim();
@@ -129,17 +132,91 @@ async function handleRegister(e) {
   if (!valid) return;
 
   const btn = document.getElementById('reg-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Sending OTP...';
 
-  const res = await apiFetch('/auth/register', {
+  const res = await apiFetch('/auth/send-otp', {
     method: 'POST',
     body: JSON.stringify({ full_name: name, phone, email, password })
   });
 
   btn.disabled = false;
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Create Patient Account`;
+  btn.innerHTML = 'Create Account';
 
   if (!res.success) return showAlert('alert-box', res.message);
+
+  _pendingEmail = email;
+  document.getElementById('otp-hint').textContent = `We sent a 6-digit code to ${email}`;
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('otp-step').style.display = '';
+  document.getElementById('alert-box').innerHTML = '';
+  initOtpInputs();
+}
+
+function initOtpInputs() {
+  const boxes = document.querySelectorAll('.otp-box');
+  boxes.forEach((box, i) => {
+    box.value = '';
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/\D/g, '');
+      if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+    });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+    });
+    box.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+      boxes.forEach((b, j) => { b.value = digits[j] || ''; });
+      boxes[Math.min(digits.length, 5)].focus();
+    });
+  });
+  boxes[0].focus();
+}
+
+async function handleOtpVerify() {
+  const boxes = document.querySelectorAll('.otp-box');
+  const otp = Array.from(boxes).map(b => b.value).join('');
+  if (otp.length < 6) return showAlert('alert-box', 'Please enter the complete 6-digit code');
+
+  const btn = document.getElementById('otp-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Verifying...';
+
+  const res = await apiFetch('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email: _pendingEmail, otp })
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = 'Verify & Create Account <span class="material-symbols-outlined text-sm">arrow_forward</span>';
+
+  if (!res.success) {
+    boxes.forEach(b => b.classList.add('border-red-400'));
+    setTimeout(() => boxes.forEach(b => b.classList.remove('border-red-400')), 1000);
+    return showAlert('alert-box', res.message);
+  }
+
   showAlert('alert-box', 'Account created! Please sign in.', 'success');
+  _pendingEmail = null;
+  document.getElementById('otp-step').style.display = 'none';
   switchTab('login');
+}
+
+async function handleResendOtp() {
+  if (!_pendingEmail) return;
+  const btn = document.getElementById('resend-btn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+
+  // Re-use the register form values to resend
+  const name     = document.getElementById('reg-name')?.value.trim();
+  const phone    = document.getElementById('reg-phone')?.value.trim();
+  const password = document.getElementById('reg-password')?.value;
+
+  const res = await apiFetch('/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ full_name: name, phone, email: _pendingEmail, password })
+  });
+
+  btn.disabled = false; btn.textContent = 'Resend';
+  showAlert('alert-box', res.success ? 'OTP resent!' : res.message, res.success ? 'success' : 'error');
+  if (res.success) initOtpInputs();
 }

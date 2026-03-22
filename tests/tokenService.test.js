@@ -288,3 +288,244 @@ describe('transitionToken', () => {
       .rejects.toMatchObject({ status: 400 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// 4. Race condition & slot capacity tests
+// ---------------------------------------------------------------------------
+
+const SLOT    = 'Morning | 09:30–09:45';
+const DOC_ID  = 'doc-race-uuid';
+const DATE    = '2026-04-15';
+
+// Builds a happy-path mock sequence for one booking attempt.
+// slotFull=true  → RPC returns SLOT_FULL error (DB enforced)
+// slotFull=false → RPC returns a new token
+function makeRaceMock({ patientId, tokenNumber, slotFull = false }) {
+  const rpcResult = slotFull
+    ? { data: null, error: { message: 'SLOT_FULL: slot has reached maximum capacity', code: 'P0001' } }
+    : { data: { id: `tok-${tokenNumber}`, token_number: tokenNumber, status: 'waiting', slot_time: SLOT }, error: null };
+
+  supabaseAdmin.from = jest.fn(() => {
+    let call = 0;
+    return {
+      select: jest.fn(function (cols, opts) {
+        call++;
+        if (opts?.head) return Promise.resolve({ count: 0, error: null });
+        return this;
+      }),
+      eq:         jest.fn(function () { return this; }),
+      neq:        jest.fn(function () { return this; }),
+      single:     jest.fn(() => {
+        call++;
+        // call 1 = holidays (null), call 2 = doctor record, call 3 = duplicate check
+        if (call === 1) return Promise.resolve({ data: null,  error: null });
+        if (call === 2) return Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null });
+        return Promise.resolve({ data: null, error: null });
+      }),
+      maybeSingle: jest.fn(() => {
+        call++;
+        if (call === 1) return Promise.resolve({ data: null, error: null }); // no holiday
+        return Promise.resolve({ data: null, error: null });                 // no duplicate
+      }),
+    };
+  });
+  supabaseAdmin.rpc = jest.fn(() => Promise.resolve(rpcResult));
+}
+
+// ── Test 1: Simultaneous booking — only MAX_PER_SLOT succeed ────────────────
+describe('Race condition — simultaneous slot booking', () => {
+
+  test('exactly MAX_PER_SLOT (2) succeed when 5 users book the same slot', async () => {
+    const patients = ['p1','p2','p3','p4','p5'];
+    let rpcCallCount = 0;
+
+    // Simulate DB advisory lock: first 2 calls succeed, rest get SLOT_FULL
+    supabaseAdmin.from = jest.fn(() => ({
+      select:      jest.fn(function (c, o) { if (o?.head) return Promise.resolve({ count: 0, error: null }); return this; }),
+      eq:          jest.fn(function () { return this; }),
+      neq:         jest.fn(function () { return this; }),
+      single:      jest.fn(() => Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null })),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    }));
+
+    supabaseAdmin.rpc = jest.fn(() => {
+      rpcCallCount++;
+      if (rpcCallCount <= 2) {
+        return Promise.resolve({
+          data: { id: `tok-${rpcCallCount}`, token_number: rpcCallCount, status: 'waiting', slot_time: SLOT },
+          error: null,
+        });
+      }
+      return Promise.resolve({
+        data: null,
+        error: { message: 'SLOT_FULL: slot has reached maximum capacity', code: 'P0001' },
+      });
+    });
+
+    const results = await Promise.allSettled(
+      patients.map(pid => bookToken({ patientId: pid, doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT }))
+    );
+
+    const succeeded = results.filter(r => r.status === 'fulfilled');
+    const failed    = results.filter(r => r.status === 'rejected');
+
+    expect(succeeded).toHaveLength(2);
+    expect(failed).toHaveLength(3);
+    failed.forEach(f => {
+      expect(f.reason.message).toMatch(/slot is full/i);
+      expect(f.reason.status).toBe(409);
+    });
+  });
+
+  // ── Test 2: Tokens are sequential and unique ─────────────────────────────
+  test('successful bookings receive unique sequential token numbers', async () => {
+    let rpcCallCount = 0;
+    supabaseAdmin.from = jest.fn(() => ({
+      select:      jest.fn(function (c, o) { if (o?.head) return Promise.resolve({ count: 0, error: null }); return this; }),
+      eq:          jest.fn(function () { return this; }),
+      neq:         jest.fn(function () { return this; }),
+      single:      jest.fn(() => Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null })),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    }));
+
+    supabaseAdmin.rpc = jest.fn(() => {
+      rpcCallCount++;
+      return Promise.resolve({
+        data: { id: `tok-${rpcCallCount}`, token_number: rpcCallCount, status: 'waiting', slot_time: SLOT },
+        error: null,
+      });
+    });
+
+    const results = await Promise.allSettled(
+      ['p1','p2'].map(pid => bookToken({ patientId: pid, doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT }))
+    );
+
+    const tokens = results.filter(r => r.status === 'fulfilled').map(r => r.value.token_number);
+    expect(tokens).toHaveLength(2);
+    // All token numbers must be unique
+    expect(new Set(tokens).size).toBe(2);
+    // Must be sequential (sorted)
+    const sorted = [...tokens].sort((a, b) => a - b);
+    sorted.forEach((n, i) => expect(n).toBe(i + 1));
+  });
+
+  // ── Test 3: Slot full error maps to 409 with correct message ─────────────
+  test('SLOT_FULL DB error maps to 409 with user-friendly message', async () => {
+    makeRaceMock({ patientId: 'p1', tokenNumber: 1, slotFull: true });
+    await expect(
+      bookToken({ patientId: 'p1', doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT })
+    ).rejects.toMatchObject({
+      status:  409,
+      message: 'This slot is full. Please choose another time.',
+    });
+  });
+
+  // ── Test 4: Rapid requests — RPC called once per booking attempt ──────────
+  test('each booking attempt calls RPC exactly once (no double-insert)', async () => {
+    supabaseAdmin.from = jest.fn(() => ({
+      select:      jest.fn(function (c, o) { if (o?.head) return Promise.resolve({ count: 0, error: null }); return this; }),
+      eq:          jest.fn(function () { return this; }),
+      neq:         jest.fn(function () { return this; }),
+      single:      jest.fn(() => Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null })),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    }));
+
+    supabaseAdmin.rpc = jest.fn(() =>
+      Promise.resolve({ data: { id: 'tok-1', token_number: 1, status: 'waiting', slot_time: SLOT }, error: null })
+    );
+
+    await bookToken({ patientId: 'p1', doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT });
+    // RPC must be called exactly once — no separate check-then-insert
+    expect(supabaseAdmin.rpc).toHaveBeenCalledTimes(1);
+    expect(supabaseAdmin.rpc).toHaveBeenCalledWith('book_token_atomic', expect.objectContaining({
+      p_patient_id:   'p1',
+      p_doctor_id:    DOC_ID,
+      p_date:         DATE,
+      p_slot_time:    SLOT,
+      p_max_per_slot: 2,
+    }));
+  });
+
+  // ── Test 5: DB integrity — slot count never exceeds MAX_PER_SLOT ──────────
+  test('slot count never exceeds MAX_PER_SLOT regardless of concurrent attempts', async () => {
+    const MAX_PER_SLOT = 2;
+    let bookedCount = 0; // simulates DB slot count inside advisory lock
+
+    supabaseAdmin.from = jest.fn(() => ({
+      select:      jest.fn(function (c, o) { if (o?.head) return Promise.resolve({ count: 0, error: null }); return this; }),
+      eq:          jest.fn(function () { return this; }),
+      neq:         jest.fn(function () { return this; }),
+      single:      jest.fn(() => Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null })),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    }));
+
+    // Simulate the advisory lock serialising requests one at a time
+    supabaseAdmin.rpc = jest.fn(() => {
+      if (bookedCount >= MAX_PER_SLOT) {
+        return Promise.resolve({
+          data: null,
+          error: { message: 'SLOT_FULL: slot has reached maximum capacity', code: 'P0001' },
+        });
+      }
+      bookedCount++;
+      return Promise.resolve({
+        data: { id: `tok-${bookedCount}`, token_number: bookedCount, status: 'waiting', slot_time: SLOT },
+        error: null,
+      });
+    });
+
+    const attempts = 10;
+    const results = await Promise.allSettled(
+      Array.from({ length: attempts }, (_, i) =>
+        bookToken({ patientId: `patient-${i}`, doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT })
+      )
+    );
+
+    const succeeded = results.filter(r => r.status === 'fulfilled');
+    // DB slot count must never exceed MAX_PER_SLOT
+    expect(bookedCount).toBeLessThanOrEqual(MAX_PER_SLOT);
+    expect(succeeded).toHaveLength(MAX_PER_SLOT);
+    // All failures must be slot-full 409s
+    results
+      .filter(r => r.status === 'rejected')
+      .forEach(f => expect(f.reason.status).toBe(409));
+  });
+
+  // ── Test 6: Unique constraint (23505) maps to 409 ────────────────────────
+  test('unique constraint violation (23505) maps to 409 booking conflict', async () => {
+    supabaseAdmin.from = jest.fn(() => ({
+      select:      jest.fn(function (c, o) { if (o?.head) return Promise.resolve({ count: 0, error: null }); return this; }),
+      eq:          jest.fn(function () { return this; }),
+      neq:         jest.fn(function () { return this; }),
+      single:      jest.fn(() => Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null })),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    }));
+    supabaseAdmin.rpc = jest.fn(() =>
+      Promise.resolve({ data: null, error: { code: '23505', message: 'duplicate key value' } })
+    );
+
+    await expect(
+      bookToken({ patientId: 'p1', doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT })
+    ).rejects.toMatchObject({ status: 409, message: 'Booking conflict, please try again' });
+  });
+
+  // ── Test 7: p_max_per_slot is always passed to RPC ───────────────────────
+  test('MAX_PER_SLOT constant is forwarded to book_token_atomic RPC', async () => {
+    supabaseAdmin.from = jest.fn(() => ({
+      select:      jest.fn(function (c, o) { if (o?.head) return Promise.resolve({ count: 0, error: null }); return this; }),
+      eq:          jest.fn(function () { return this; }),
+      neq:         jest.fn(function () { return this; }),
+      single:      jest.fn(() => Promise.resolve({ data: { id: DOC_ID, is_available: true, max_daily_tokens: null }, error: null })),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    }));
+    supabaseAdmin.rpc = jest.fn(() =>
+      Promise.resolve({ data: { id: 't1', token_number: 1, status: 'waiting', slot_time: SLOT }, error: null })
+    );
+
+    await bookToken({ patientId: 'p1', doctorId: DOC_ID, bookingDate: DATE, slotTime: SLOT });
+
+    expect(supabaseAdmin.rpc).toHaveBeenCalledWith('book_token_atomic', expect.objectContaining({
+      p_max_per_slot: 2,
+    }));
+  });
+});

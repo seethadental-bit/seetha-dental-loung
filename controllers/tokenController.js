@@ -107,4 +107,24 @@ async function cancelMyToken(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { getDoctors, bookNewToken, getMyTokens, getTokenStatus, cancelMyToken };
+async function getBookedSlots(req, res, next) {
+  try {
+    const { doctor_id, date } = req.query;
+    if (!doctor_id || !date) return fail(res, 'doctor_id and date required', 400);
+    const { data, error } = await supabaseAdmin
+      .from('tokens')
+      .select('slot_time')
+      .eq('doctor_id', doctor_id)
+      .eq('booking_date', date)
+      .neq('status', 'cancelled');
+    if (error) return fail(res, error.message, 500);
+    // Count bookings per slot
+    const counts = {};
+    (data || []).forEach(t => {
+      if (t.slot_time) counts[t.slot_time] = (counts[t.slot_time] || 0) + 1;
+    });
+    return ok(res, counts);
+  } catch (e) { next(e); }
+}
+
+module.exports = { getDoctors, bookNewToken, getMyTokens, getTokenStatus, cancelMyToken, getBookedSlots };
