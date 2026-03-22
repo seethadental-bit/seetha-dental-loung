@@ -16,8 +16,11 @@ async function sendOtp(req, res, next) {
     if (phone && !validatePhone(phone)) return fail(res, 'Invalid phone number', 400);
 
     // Check if email already registered
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ filter: `email=eq.${email}` });
-    if (existingUsers?.users?.length) return fail(res, 'Email already registered', 400);
+    const { data, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listError) throw listError;
+    if (data?.users?.some(u => u.email === email)) {
+      return fail(res, 'Email already registered', 400);
+    }
 
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     otpStore.set(email, { otp, expiry: Date.now() + 10 * 60 * 1000, full_name, phone, password });

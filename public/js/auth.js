@@ -50,6 +50,11 @@ function badge(status) {
   return `<span class="badge badge-${status}">${status.replace('_', ' ')}</span>`;
 }
 
+function fieldErr(id, show) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('border-red-500', show);
+}
+
 // Redirect if not authenticated or wrong role
 function requireAuth(expectedRole) {
   const profile = getProfile();
