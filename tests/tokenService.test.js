@@ -4,7 +4,7 @@
 // Mock supabaseAdmin before requiring tokenService.
 // Each test configures the mock chain via mockSupabase helpers below.
 // ---------------------------------------------------------------------------
-jest.mock('../config/supabaseClient', () => ({ supabaseAdmin: buildMock() }));
+jest.mock('../config/supabaseClient', () => ({ supabaseAdmin: mockBuildMock() }));
 jest.mock('../utils/dateUtils', () => ({ todayIST: () => '2024-01-15' }));
 
 const { supabaseAdmin } = require('../config/supabaseClient');
@@ -14,7 +14,7 @@ const { bookToken, transitionToken } = require('../services/tokenService');
 // Mock builder — returns a chainable Supabase-like query object.
 // Call mockResolve(data, error) on the chain to set the resolved value.
 // ---------------------------------------------------------------------------
-function buildMock() {
+function mockBuildMock() {
   const chain = {};
   const methods = ['from','select','insert','update','eq','neq','in','order','limit','single','maybeSingle','rpc'];
   let _resolve = { data: null, error: null };
@@ -186,13 +186,17 @@ describe('bookToken', () => {
       call++;
       if (call === 1) return buildChain({ data: null, error: null }); // no holiday
       if (call === 2) return buildChain({ data: { id: doctorId, is_available: true, max_daily_tokens: 5 }, error: null });
-      // count query for max tokens
-      if (call === 3) {
-        const c = buildChain({ data: null, error: null });
-        c.select = jest.fn(() => Promise.resolve({ count: 5, error: null }));
-        return c;
-      }
-      return buildChain({ data: null, error: null });
+      // count query — return count >= max_daily_tokens
+      const countResult = { count: 5, error: null };
+      const thenable = Object.assign(Promise.resolve(countResult), {
+        eq:  jest.fn(function() { return this; }),
+        neq: jest.fn(function() { return Promise.resolve(countResult); }),
+      });
+      const c = buildChain({ data: null, error: null });
+      c.select = jest.fn((cols, opts) => opts?.head ? thenable : c);
+      c.eq   = jest.fn(() => c);
+      c.neq  = jest.fn(() => Promise.resolve(countResult));
+      return c;
     });
     await expect(bookToken({ patientId, doctorId })).rejects.toMatchObject({ status: 400 });
   });
@@ -205,18 +209,12 @@ describe('transitionToken', () => {
   const doctorId = 'doc-uuid';
   const tokenId  = 'tok-uuid';
 
-  function makeTransition(fromStatus, toStatus, expectError) {
+  function makeTransition(fromStatus, toStatus) {
+    let call = 0;
     supabaseAdmin.from = jest.fn(() => {
-      let call = 0;
-      const c = buildChain({ data: { id: tokenId, status: fromStatus, doctor_id: doctorId }, error: null });
-      const orig = c.single.bind(c);
-      c.single = jest.fn(() => {
-        call++;
-        if (call === 1) return orig(); // fetch token
-        // second call is the update
-        return Promise.resolve({ data: { id: tokenId, status: toStatus }, error: null });
-      });
-      return c;
+      call++;
+      if (call === 1) return buildChain({ data: { id: tokenId, status: fromStatus, doctor_id: doctorId }, error: null });
+      return buildChain({ data: { id: tokenId, status: toStatus }, error: null });
     });
   }
 

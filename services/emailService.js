@@ -397,4 +397,35 @@ async function sendOtpEmail({ to, name, otp }) {
   }
 }
 
-module.exports = { sendWelcome, sendTokenConfirmation, sendOtpEmail };
+async function sendRecallEmail({ to, name, doctorName, recallDate, recallId }) {
+  const bookingUrl = `${APP_URL}/patient.html?recall=${recallId}`;
+  const body = `
+    <h2 style="margin:0 0 8px;color:#003f87;font-family:Georgia,serif;font-size:28px;font-weight:700;">Time for Your Checkup!</h2>
+    <p style="margin:0 0 24px;color:#6c757d;font-size:13px;text-transform:uppercase;font-weight:600;letter-spacing:0.5px;">Recall Reminder &middot; ${recallDate}</p>
+    <p style="margin:0 0 28px;color:#444;font-size:15px;line-height:1.8;">
+      Hi <strong>${name}</strong>, Dr. <strong style="color:#003f87;">${doctorName}</strong> recommends a follow-up visit around <strong>${recallDate}</strong>. Book your token now to secure your slot.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 32px;">
+      <tr><td align="center">
+        <a href="${bookingUrl}" style="display:inline-block;background:#003f87;color:#ffffff;text-decoration:none;padding:16px 44px;border-radius:8px;font-size:16px;font-weight:700;font-family:Arial,sans-serif;">
+          Book Your Token &rarr;
+        </a>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;">
+        <p style="margin:0;color:#92400e;font-size:13px;line-height:1.7;font-family:Arial,sans-serif;">
+          Regular checkups help catch issues early and keep your smile healthy. Clinic opens at <strong>9:30 AM</strong>.
+        </p>
+      </td></tr>
+    </table>
+  `;
+  try {
+    const res = await sendViaBrevo({ to, subject: `Time for Your Checkup — Seetha Dental Lounge`, html: layout(`Time for your checkup with Dr. ${doctorName}!`, body) });
+    console.log('[email] Recall sent to', to, '| messageId:', res.messageId);
+  } catch (err) {
+    console.error('[email] Failed to send recall to', to, '| error:', err.message);
+  }
+}
+
+module.exports = { sendWelcome, sendTokenConfirmation, sendOtpEmail, sendRecallEmail };

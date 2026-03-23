@@ -148,6 +148,7 @@ async function bookToken() {
   if (!selectedSlot) return showAlert('alert-box', 'Please select a time slot', 'warn');
 
   const slotString = `${selectedSlot.session} | ${selectedSlot.label}`;
+  const recallId = document.getElementById('booking-notes').dataset.recallId || null;
 
   const btn = document.querySelector('button[onclick="bookToken()"]');
   btn.disabled = true;
@@ -155,7 +156,7 @@ async function bookToken() {
 
   const res = await apiFetch('/patient/book-token', {
     method: 'POST',
-    body: JSON.stringify({ doctor_id: doctorId, booking_date: date, slot_time: slotString, notes })
+    body: JSON.stringify({ doctor_id: doctorId, booking_date: date, slot_time: slotString, notes, recall_id: recallId })
   });
 
   btn.disabled = false;
@@ -177,10 +178,12 @@ function showBookingModal(token, date) {
   const queuePos = token.queue_position || token.token_number;
   const waitMins = ((queuePos - 1) * 15);
 
-  document.getElementById('modal-token').textContent  = `#${token.token_number}`;
+  const doctorName = document.getElementById('doctor-select').selectedOptions[0]?.text || '—';
+
+  document.getElementById('modal-token').textContent  = `#${formatToken(token)}`;
   document.getElementById('modal-slot').textContent   = slot;
   document.getElementById('modal-date').textContent   = date;
-  document.getElementById('modal-doctor').textContent = token.doctor?.display_name || '—';
+  document.getElementById('modal-doctor').textContent = doctorName;
   document.getElementById('modal-queue').textContent  = `#${queuePos}`;
   document.getElementById('modal-wait').textContent   = waitMins > 0 ? `~${waitMins}` : '<5';
   document.getElementById('booking-modal').style.display = '';
@@ -197,6 +200,7 @@ function formatToken(t) {
   const prefix = slot.startsWith('Evening') ? 'E-' : 'M-';
   return `${prefix}${t.token_number}`;
 }
+
 
 async function loadMyTokens() {
   const res = await apiFetch('/patient/my-tokens');
@@ -279,6 +283,24 @@ async function cancelToken(id) {
 }
 
 // ── Init ──────────────────────────────────────────────────────
-loadDoctors();
+loadDoctors().then(() => checkRecallParam());
 loadMyTokens();
 setInterval(() => { if (activeTokenId) refreshActiveToken(); }, 15000);
+
+async function checkRecallParam() {
+  const recallId = new URLSearchParams(window.location.search).get('recall');
+  if (!recallId) return;
+  const res = await apiFetch(`/patient/recall-info/${recallId}`);
+  if (!res.success) return;
+  const recall = res.data;
+  // Pre-select doctor
+  const sel = document.getElementById('doctor-select');
+  if (sel) sel.value = recall.doctor?.id || '';
+  // Suggest recall date as booking date
+  const dateInp = document.getElementById('booking-date');
+  if (dateInp && recall.recall_date) dateInp.value = recall.recall_date;
+  // Store recall id on the form for submission
+  document.getElementById('booking-notes').dataset.recallId = recallId;
+  onDoctorOrDateChange();
+  showAlert('alert-box', `Welcome back! Your follow-up with ${recall.doctor?.display_name} is pre-filled.`, 'success');
+}

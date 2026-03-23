@@ -10,7 +10,7 @@ let searchTimer      = null;
 
 // ── Section navigation ─────────────────────────────────────
 function showSection(name) {
-  ['dashboard','doctors','patients','tokens'].forEach(s => {
+  ['dashboard','doctors','patients','tokens','recalls'].forEach(s => {
     const el = document.getElementById(`sec-${s}`);
     if (el) el.style.display = s === name ? '' : 'none';
     const nav = document.getElementById(`nav-${s}`);
@@ -20,6 +20,7 @@ function showSection(name) {
   if (name === 'doctors')   loadDoctors();
   if (name === 'patients')  loadPatients();
   if (name === 'tokens')    { loadDoctorFilter(); loadTokens(); }
+  if (name === 'recalls')   loadRecalls();
 }
 
 function safeHtml(str) {
@@ -632,6 +633,73 @@ function renderDrawerTokens(res, statusFilter) {
   });
 }
 
+
+// ── Recalls ───────────────────────────────────────────────
+async function loadRecalls() {
+  const status = document.getElementById('recall-status-filter')?.value || '';
+  const res = await apiFetch(`/admin/recalls${status ? `?status=${status}` : ''}`);
+  if (!res.success) return;
+
+  const items = res.data || [];
+
+  // Stats
+  const counts = { pending: 0, sent: 0, booked: 0, expired: 0 };
+  items.forEach(r => counts[r.status] = (counts[r.status] || 0) + 1);
+  const statsEl = document.getElementById('recall-stats');
+  statsEl.innerHTML = [
+    { l: 'Pending',  n: counts.pending,  c: '#003f87', i: 'schedule' },
+    { l: 'Sent',     n: counts.sent,     c: '#6d28d9', i: 'mark_email_read' },
+    { l: 'Booked',   n: counts.booked,   c: '#059669', i: 'event_available' },
+    { l: 'Expired',  n: counts.expired,  c: '#94a3b8', i: 'event_busy' },
+  ].map(s => `
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+      <span class="material-symbols-outlined" style="color:${s.c};font-size:1.4rem">${s.i}</span>
+      <div style="font-size:1.75rem;font-weight:900;color:${s.c};line-height:1;margin:4px 0">${s.n}</div>
+      <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8">${s.l}</div>
+    </div>`).join('');
+
+  // Table
+  const tbody = document.getElementById('recalls-tbody');
+  tbody.innerHTML = '';
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">No recalls found</td></tr>';
+    return;
+  }
+
+  const recallBadge = s => {
+    const cfg = { pending: 'bg-blue-100 text-blue-700', sent: 'bg-purple-100 text-purple-700', booked: 'bg-emerald-100 text-emerald-700', expired: 'bg-slate-100 text-slate-500' };
+    return `<span class="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-tight ${cfg[s] || 'bg-slate-100 text-slate-600'}">${s}</span>`;
+  };
+
+  items.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-50/50 transition-colors text-sm';
+    tr.innerHTML = `
+      <td class="px-4 md:px-6 py-4 font-bold text-slate-900 name-cell"></td>
+      <td class="px-4 md:px-6 py-4 text-slate-600 doc-cell hidden md:table-cell"></td>
+      <td class="px-4 md:px-6 py-4 font-medium text-slate-700 date-cell"></td>
+      <td class="px-4 md:px-6 py-4 status-cell"></td>
+      <td class="px-4 md:px-6 py-4 text-slate-400 text-xs sent-cell hidden sm:table-cell"></td>
+    `;
+    tr.querySelector('.name-cell').textContent = r.patient?.full_name || '—';
+    tr.querySelector('.doc-cell').textContent = r.doctor?.display_name ? `Dr. ${r.doctor.display_name}` : '—';
+    tr.querySelector('.date-cell').textContent = r.recall_date;
+    tr.querySelector('.status-cell').innerHTML = recallBadge(r.status);
+    tr.querySelector('.sent-cell').textContent = r.email_sent_at ? new Date(r.email_sent_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—';
+    tbody.appendChild(tr);
+  });
+}
+
+async function triggerRecallJob() {
+  const btn = event.target.closest('button');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Sending...';
+  const res = await apiFetch('/admin/recalls/trigger', { method: 'POST' });
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-symbols-outlined">send</span> Send Due Emails';
+  if (res.success) { showAlert('global-alert', res.data?.message || 'Recall job completed.', 'success'); loadRecalls(); }
+  else showAlert('global-alert', res.message);
+}
 
 // ── Helpers ────────────────────────────────────────────────
 function alertHtml(msg) {

@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabaseClient');
 const { ok, fail } = require('../utils/responseHelpers');
 const { getDoctorByProfileId } = require('../services/doctorService');
 const { getDoctorQueue, transitionToken } = require('../services/tokenService');
+const { createRecall } = require('../services/recallService');
 const audit = require('../services/auditService');
 const { todayIST } = require('../utils/dateUtils');
 
@@ -116,6 +117,13 @@ async function completeToken(req, res, next) {
     const doctor = await getDoctorByProfileId(req.user.id);
     const updated = await transitionToken({ tokenId: req.params.id, doctorId: doctor.id, toStatus: 'completed' });
     await audit.log({ actorId: req.user.id, actorRole: 'doctor', action: 'token_completed', targetEntity: 'tokens', targetId: req.params.id });
+
+    const { recallInterval } = req.body;
+    if (recallInterval && recallInterval !== 'none') {
+      createRecall({ patientId: updated.patient_id, doctorId: doctor.id, tokenId: req.params.id, interval: recallInterval })
+        .catch(err => console.error('[recall] Failed to create recall:', err.message));
+    }
+
     return ok(res, updated);
   } catch (e) { next(e); }
 }

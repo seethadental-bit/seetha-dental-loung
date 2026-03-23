@@ -87,4 +87,11 @@ app.listen(PORT, () => {
   console.log('[email] SMTP_USER:', process.env.SMTP_USER || 'NOT SET');
   console.log('[email] SMTP_FROM:', process.env.SMTP_FROM || 'NOT SET');
   console.log('[email] APP_URL:', process.env.APP_URL || 'NOT SET');
+
+  // Daily recall cron at 8:00 AM IST (2:30 AM UTC)
+  const cron = require('node-cron');
+  cron.schedule('30 2 * * *', () => {
+    console.log('[recall] Running daily recall job...');
+    require('./services/recallService').processDueRecalls();
+  }, { timezone: 'UTC' });
 });

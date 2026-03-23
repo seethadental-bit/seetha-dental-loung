@@ -11,5 +11,6 @@ router.post('/book-token',                c.bookNewToken);
 router.get('/my-tokens',                  c.getMyTokens);
 router.get('/my-token-status/:id',        c.getTokenStatus);
 router.patch('/tokens/:id/cancel',        c.cancelMyToken);
+router.get('/recall-info/:id',            c.getRecallInfo);
 
 module.exports = router;

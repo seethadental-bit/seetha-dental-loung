@@ -19,5 +19,7 @@ router.delete('/doctors/:id',               c.deleteDoctor);
 router.patch('/doctors/:id/availability',   c.setDoctorAvailability);
 router.get('/tokens',                       c.getAllTokens);
 router.patch('/tokens/:id/cancel',          c.adminCancelToken);
+router.get('/recalls',                      c.getRecalls);
+router.post('/recalls/trigger',             c.triggerRecalls);
 
 module.exports = router;

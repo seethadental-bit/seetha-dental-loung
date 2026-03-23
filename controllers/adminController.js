@@ -320,4 +320,26 @@ async function adminCancelToken(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { getDashboard, getUsers, createUserByAdmin, updateUser, deleteUser, getUserTokens, updateUserStatus, getDoctors, createDoctor, updateDoctor, deleteDoctor, setDoctorAvailability, getAllTokens, adminCancelToken };
+async function getRecalls(req, res, next) {
+  try {
+    const { status } = req.query;
+    let query = supabaseAdmin
+      .from('recalls')
+      .select('*, patient:patient_id(full_name), doctor:doctor_id(display_name)')
+      .order('recall_date', { ascending: true });
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) return fail(res, error.message, 500);
+    return ok(res, data);
+  } catch (e) { next(e); }
+}
+
+async function triggerRecalls(req, res, next) {
+  try {
+    const { processDueRecalls } = require('../services/recallService');
+    await processDueRecalls();
+    return ok(res, { message: 'Recall job completed. Check logs for details.' });
+  } catch (e) { next(e); }
+}
+
+module.exports = { getDashboard, getUsers, createUserByAdmin, updateUser, deleteUser, getUserTokens, updateUserStatus, getDoctors, createDoctor, updateDoctor, deleteDoctor, setDoctorAvailability, getAllTokens, adminCancelToken, getRecalls, triggerRecalls };

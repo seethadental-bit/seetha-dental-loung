@@ -10,7 +10,7 @@ const ALLOWED_TRANSITIONS = {
   skipped:     ['waiting', 'cancelled'],
 };
 
-async function bookToken({ patientId, doctorId, notes, bookingDate, slotTime }) {
+async function bookToken({ patientId, doctorId, notes, bookingDate, slotTime, recallId }) {
   const date = bookingDate || todayIST();
 
   const { data: holiday } = await supabaseAdmin
@@ -23,9 +23,13 @@ async function bookToken({ patientId, doctorId, notes, bookingDate, slotTime }) 
   if (!doctor.is_available) throw Object.assign(new Error('Doctor is not available currently'), { status: 400 });
 
   if (doctor.max_daily_tokens) {
-    const { count } = await supabaseAdmin
-      .from('tokens').select('id', { count: 'exact', head: true })
-      .eq('doctor_id', doctorId).eq('booking_date', date).neq('status', 'cancelled');
+    let countQuery = supabaseAdmin
+      .from('tokens')
+      .select('id', { count: 'exact', head: true })
+      .eq('doctor_id', doctorId)
+      .eq('booking_date', date)
+      .neq('status', 'cancelled');
+    const { count } = await countQuery;
     if (count >= doctor.max_daily_tokens)
       throw Object.assign(new Error('Doctor has reached maximum tokens for this date'), { status: 400 });
   }
@@ -43,30 +47,37 @@ async function bookToken({ patientId, doctorId, notes, bookingDate, slotTime }) 
   // Actually, I'll use the notes field to store slot for now to avoid DB migration issues if psql is missing.
   // Wait, I can try to use supabaseAdmin.from().insert() with manual token number calc if needed.
   
-  const [h, m] = slotTime ? slotTime.split(':').map(Number) : [9, 30];
-  const timeVal = h + (m / 60);
-  const session = timeVal < 13.5 ? 'Morning' : 'Afternoon';
-  const prefix = session === 'Morning' ? 'M-' : 'A-';
-  const fullSlotString = `${session} | ${slotTime}`;
+  const fullSlotString = slotTime || '';
 
   // Single RPC: advisory lock + session-based MAX(token_number) + INSERT in one transaction
   const { data: token, error } = await supabaseAdmin
     .rpc('book_token_atomic', {
-      p_patient_id: patientId,
-      p_doctor_id:  doctorId,
-      p_date:       date,
-      p_notes:      notes || null,
-      p_slot_time:  fullSlotString
+      p_patient_id:   patientId,
+      p_doctor_id:    doctorId,
+      p_date:         date,
+      p_notes:        notes || null,
+      p_slot_time:    fullSlotString,
+      p_max_per_slot: 2,
     });
 
   if (error) {
+    console.error('[bookToken] RPC error:', error.code, error.message);
     if (error.code === '23505')
       throw Object.assign(new Error('Booking conflict, please try again'), { status: 409 });
+    if (error.message?.includes('SLOT_FULL'))
+      throw Object.assign(new Error('This slot is full. Please choose another time.'), { status: 409 });
     throw Object.assign(new Error(error.message), { status: 500 });
   }
   
-  // Attach prefix for frontend
-  token.display_token = `${prefix}${token.token_number}`;
+  token.display_token = token.token_number;
+
+  if (recallId) {
+    await supabaseAdmin.from('recalls')
+      .update({ status: 'booked' })
+      .eq('id', recallId)
+      .eq('patient_id', patientId);
+  }
+
   return token;
 }
 
@@ -104,9 +115,9 @@ async function transitionToken({ tokenId, doctorId, toStatus }) {
 
   const { data: updated, error: upErr } = await supabaseAdmin
     .from('tokens').update({ status: toStatus, ...timestamps[toStatus] })
-    .eq('id', tokenId).select().single();
+    .eq('id', tokenId).select('*').single();
   if (upErr) throw Object.assign(new Error(upErr.message), { status: 500 });
-  return updated;
+  return updated || { id: tokenId, status: toStatus };
 }
 
 module.exports = { bookToken, getDoctorQueue, transitionToken };

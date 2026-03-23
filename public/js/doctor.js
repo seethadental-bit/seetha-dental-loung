@@ -104,10 +104,26 @@ async function callNext() {
   loadQueue();
 }
 
-async function completeToken(id) {
-  const res = await apiFetch(`/doctor/tokens/${id}/complete`, { method: 'PATCH' });
+function completeToken(id) {
+  document.getElementById('recall-token-id').value = id;
+  document.getElementById('recall-interval').value = '';
+  document.getElementById('recall-modal').style.display = '';
+}
+
+async function submitComplete() {
+  const id = document.getElementById('recall-token-id').value;
+  const interval = document.getElementById('recall-interval').value;
+  closeRecallModal();
+  const res = await apiFetch(`/doctor/tokens/${id}/complete`, {
+    method: 'PATCH',
+    body: JSON.stringify({ recallInterval: interval || null }),
+  });
   if (!res.success) return showAlert('alert-box', res.message);
   loadQueue();
+}
+
+function closeRecallModal() {
+  document.getElementById('recall-modal').style.display = 'none';
 }
 
 async function skipToken(id) {
@@ -119,7 +135,7 @@ async function skipToken(id) {
 function formatToken(t) {
   if (!t) return '';
   const slot = t.slot_time || '';
-  const prefix = slot.startsWith('Afternoon') ? 'A-' : 'M-';
+  const prefix = slot.startsWith('Evening') ? 'E-' : 'M-';
   return `${prefix}${t.token_number}`;
 }
 

@@ -19,7 +19,7 @@ async function getDoctors(req, res, next) {
 
 async function bookNewToken(req, res, next) {
   try {
-    const { doctor_id, notes, booking_date, slot_time } = req.body;
+    const { doctor_id, notes, booking_date, slot_time, recall_id } = req.body;
     if (!doctor_id) return fail(res, 'doctor_id is required', 400);
 
     const token = await bookToken({ 
@@ -27,7 +27,8 @@ async function bookNewToken(req, res, next) {
       doctorId: doctor_id, 
       notes, 
       bookingDate: booking_date, 
-      slotTime: slot_time 
+      slotTime: slot_time,
+      recallId: recall_id || null,
     });
 
     // Fire-and-forget booking confirmation email
@@ -127,4 +128,18 @@ async function getBookedSlots(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { getDoctors, bookNewToken, getMyTokens, getTokenStatus, cancelMyToken, getBookedSlots };
+async function getRecallInfo(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('recalls')
+      .select('*, patient:patient_id(full_name), doctor:doctor_id(id, display_name, specialty)')
+      .eq('id', id)
+      .eq('patient_id', req.user.id)
+      .single();
+    if (error || !data) return fail(res, 'Recall not found', 404);
+    return ok(res, data);
+  } catch (e) { next(e); }
+}
+
+module.exports = { getDoctors, bookNewToken, getMyTokens, getTokenStatus, cancelMyToken, getBookedSlots, getRecallInfo };
