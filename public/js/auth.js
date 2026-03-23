@@ -225,3 +225,116 @@ async function handleResendOtp() {
   showAlert('alert-box', res.success ? 'OTP resent!' : res.message, res.success ? 'success' : 'error');
   if (res.success) initOtpInputs();
 }
+
+// ---- FORGOT PASSWORD (OTP-based) ----
+let _resetEmail = null;
+
+function showStep(id) {
+  ['login-form','register-form','otp-step','forgot-step','forgot-otp-step','reset-step']
+    .forEach(s => { const el = document.getElementById(s); if (el) el.style.display = 'none'; });
+  const target = document.getElementById(id);
+  if (target) target.style.display = 'block';
+  document.getElementById('alert-box').innerHTML = '';
+}
+
+function showForgotPassword(show = true) {
+  showStep(show ? 'forgot-step' : 'login-form');
+  if (show) setTimeout(() => document.getElementById('forgot-email')?.focus(), 50);
+}
+
+async function handleForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return showAlert('alert-box', 'Please enter your email address', 'warn');
+
+  const btn = document.getElementById('forgot-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Sending...';
+
+  const res = await apiFetch('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = 'Send OTP <span class="material-symbols-outlined text-sm">send</span>';
+
+  if (!res.success) return showAlert('alert-box', res.message);
+
+  _resetEmail = email;
+  document.getElementById('reset-otp-hint').textContent = `We sent a 6-digit code to ${email}`;
+  showStep('forgot-otp-step');
+  initResetOtpInputs();
+}
+
+function initResetOtpInputs() {
+  const boxes = document.querySelectorAll('.reset-otp-box');
+  boxes.forEach((box, i) => {
+    box.value = '';
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/\D/g, '');
+      if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+    });
+    box.addEventListener('paste', e => {
+      e.preventDefault();
+      const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+      boxes.forEach((b, j) => { b.value = digits[j] || ''; });
+      boxes[Math.min(digits.length, 5)].focus();
+    });
+  });
+  boxes[0].focus();
+}
+
+async function handleResetOtpVerify() {
+  const boxes = document.querySelectorAll('.reset-otp-box');
+  const otp = Array.from(boxes).map(b => b.value).join('');
+  if (otp.length < 6) return showAlert('alert-box', 'Please enter the complete 6-digit code');
+
+  const btn = document.getElementById('reset-otp-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Verifying...';
+
+  const res = await apiFetch('/auth/verify-reset-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email: _resetEmail, otp })
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = 'Verify OTP <span class="material-symbols-outlined text-sm">arrow_forward</span>';
+
+  if (!res.success) {
+    boxes.forEach(b => b.classList.add('border-red-400'));
+    setTimeout(() => boxes.forEach(b => b.classList.remove('border-red-400')), 1000);
+    return showAlert('alert-box', res.message);
+  }
+
+  showStep('reset-step');
+  document.getElementById('new-password').focus();
+}
+
+async function handleSetNewPassword() {
+  const password = document.getElementById('new-password').value;
+  const confirm  = document.getElementById('confirm-password').value;
+  if (password.length < 6) return showAlert('alert-box', 'Password must be at least 6 characters', 'warn');
+  if (password !== confirm) return showAlert('alert-box', 'Passwords do not match', 'warn');
+
+  const btn = document.getElementById('reset-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Updating...';
+
+  const res = await apiFetch('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email: _resetEmail, password })
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = 'Update Password <span class="material-symbols-outlined text-sm">check_circle</span>';
+
+  if (!res.success) return showAlert('alert-box', res.message);
+
+  showAlert('alert-box', 'Password updated! Please sign in.', 'success');
+  _resetEmail = null;
+  setTimeout(() => showStep('login-form'), 1500);
+}

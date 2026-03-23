@@ -146,108 +146,134 @@ function layout(preheader, bodyHtml) {
 
 // ── Welcome email ────────────────────────────────────────────
 function welcomeHtml(name) {
-  const body = `
-    <!-- Hero -->
-    <div style="text-align:center;padding:20px 0 32px;">
-      <p style="margin:0 0 6px;color:#6c757d;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;font-family:Arial,sans-serif;">Welcome to</p>
-      <h1 style="margin:0 0 4px;color:#003f87;font-family:Georgia,serif;font-size:36px;font-weight:800;letter-spacing:-0.5px;line-height:1.15;">Clinical Serenity.</h1>
-      <p style="margin:16px auto 0;color:#555;font-size:15px;line-height:1.8;max-width:420px;font-family:Arial,sans-serif;">Hi <strong>${name}</strong>, your account is ready. At Seetha Dental Lounge, we believe your journey to a healthier smile should be as relaxing as a visit to a luxury lounge.</p>
-    </div>
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Welcome to Seetha Dental Lounge</title>
+</head>
+<body style="margin:0;padding:32px 16px;background-color:#f9fafb;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
 
-    <!-- CTA button -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 36px;">
-      <tr><td align="center">
-        <a href="${APP_URL}/patient.html"
-           style="display:inline-block;background:linear-gradient(135deg,#003f87 0%,#0056b3 100%);color:#ffffff;text-decoration:none;padding:16px 44px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.3px;font-family:Arial,sans-serif;box-shadow:0 4px 16px rgba(0,63,135,0.25);">
-          Login to your Dashboard &rarr;
-        </a>
-      </td></tr>
-    </table>
+<!-- Preheader -->
+<div style="display:none;max-height:0;overflow:hidden;">Welcome to Seetha Dental Lounge, ${name}! Your account is ready.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
 
-    <!-- Bento 3-card grid -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 36px;">
-      <tr>
-        <!-- Card 1 -->
-        <td width="33%" style="padding:0 8px 0 0;vertical-align:top;">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="background:#f3f4f5;border-radius:12px;padding:24px 20px;">
-              <div style="width:44px;height:44px;background:#c8dffd;border-radius:50%;text-align:center;margin-bottom:16px;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-top:11px;"><circle cx="12" cy="8" r="4" stroke="#4a6079" stroke-width="1.8"/><path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="#4a6079" stroke-width="1.8" stroke-linecap="round"/><path d="M16 5l1.5 1.5L21 3" stroke="#4a6079" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </div>
-              <p style="margin:0 0 8px;color:#003f87;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">Complete Profile</p>
-              <p style="margin:0 0 20px;color:#6c757d;font-size:12px;line-height:1.6;font-family:Arial,sans-serif;">Keep your medical history up-to-date for a personalized care plan.</p>
-              <p style="margin:0;color:#0056b3;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Step 01</p>
-            </td></tr>
-          </table>
-        </td>
-        <!-- Card 2 -->
-        <td width="33%" style="padding:0 4px;vertical-align:top;">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="background:#f3f4f5;border-radius:12px;padding:24px 20px;">
-              <div style="width:44px;height:44px;background:#00636c;border-radius:50%;text-align:center;margin-bottom:16px;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-top:11px;"><circle cx="12" cy="12" r="9" stroke="#7fdfec" stroke-width="1.8"/><path d="M12 7V12L15 15" stroke="#7fdfec" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </div>
-              <p style="margin:0 0 8px;color:#003f87;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">Check Queue</p>
-              <p style="margin:0 0 20px;color:#6c757d;font-size:12px;line-height:1.6;font-family:Arial,sans-serif;">View real-time waiting room status and know exactly when it's your turn.</p>
-              <p style="margin:0;color:#0056b3;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Step 02</p>
-            </td></tr>
-          </table>
-        </td>
-        <!-- Card 3 -->
-        <td width="33%" style="padding:0 0 0 8px;vertical-align:top;">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="background:#f3f4f5;border-radius:12px;padding:24px 20px;">
-              <div style="width:44px;height:44px;background:#d7e2ff;border-radius:50%;text-align:center;margin-bottom:16px;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-top:11px;"><rect x="3" y="4" width="18" height="18" rx="3" stroke="#001a40" stroke-width="1.8"/><path d="M3 9H21" stroke="#001a40" stroke-width="1.8"/><path d="M8 2V6M16 2V6" stroke="#001a40" stroke-width="1.8" stroke-linecap="round"/><path d="M9 14l2 2 4-4" stroke="#001a40" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </div>
-              <p style="margin:0 0 8px;color:#003f87;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">Book Visit</p>
-              <p style="margin:0 0 20px;color:#6c757d;font-size:12px;line-height:1.6;font-family:Arial,sans-serif;">Schedule your next appointment or treatment session directly through our portal.</p>
-              <p style="margin:0;color:#0056b3;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Step 03</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td align="center">
 
-    <!-- Sanctuary section -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f5;border-radius:12px;">
-      <tr>
-        <td style="padding:32px;">
-          <h2 style="margin:0 0 12px;color:#003f87;font-family:Georgia,serif;font-size:22px;font-weight:700;">Your Sanctuary Awaits</h2>
-          <p style="margin:0 0 20px;color:#555;font-size:14px;line-height:1.8;font-family:Arial,sans-serif;">We've redesigned the dental experience from the ground up. From the moment you step through our doors in Paravur, every detail is crafted for your peace of mind.</p>
-          <table cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td style="padding:0 8px 0 0;">
-                <table cellpadding="0" cellspacing="0" border="0">
-                  <tr><td style="background:#ffffff;border-radius:20px;padding:8px 14px;">
-                    <table cellpadding="0" cellspacing="0" border="0"><tr>
-                      <td style="padding-right:6px;vertical-align:middle;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12l2 2 4-4" stroke="#003f87" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="#003f87" stroke-width="1.8"/></svg>
-                      </td>
-                      <td style="color:#444;font-size:11px;font-weight:600;font-family:Arial,sans-serif;">Advanced Clinical Technology</td>
-                    </tr></table>
-                  </td></tr>
-                </table>
-              </td>
-              <td>
-                <table cellpadding="0" cellspacing="0" border="0">
-                  <tr><td style="background:#ffffff;border-radius:20px;padding:8px 14px;">
-                    <table cellpadding="0" cellspacing="0" border="0"><tr>
-                      <td style="padding-right:6px;vertical-align:middle;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8 6 4 8 4 13a8 8 0 0016 0c0-5-4-7-8-11z" stroke="#003f87" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                      </td>
-                      <td style="color:#444;font-size:11px;font-weight:600;font-family:Arial,sans-serif;">Comfort-First Environment</td>
-                    </tr></table>
-                  </td></tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  `;
-  return layout(`Welcome to Seetha Dental Lounge, ${name}! Your account is ready.`, body);
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);border:1px solid #f3f4f6;">
+
+  <!-- Logo Header -->
+  <tr>
+    <td style="background:#ffffff;padding:32px;text-align:center;border-bottom:1px solid #f9fafb;">
+      <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+        <tr>
+          <td style="padding-right:12px;vertical-align:middle;">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="40" height="40" rx="12" fill="#0f4c5c"/>
+              <path d="M20 10C15 10 12 13 12 16.5C12 21 28 19 28 23.5C28 27 25 30 20 30C16 30 13 28 12.5 25" stroke="#d4af37" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M25 11.5L28 15" stroke="#d4af37" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="27" cy="11" r="1.5" fill="#d4af37"/>
+            </svg>
+          </td>
+          <td style="vertical-align:middle;">
+            <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;letter-spacing:1px;color:#0a303a;text-transform:uppercase;">Seetha <span style="color:#d4af37;font-weight:400;">Dental Lounge</span></span>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Hero -->
+  <tr>
+    <td style="background:#0f4c5c;padding:64px 48px;text-align:center;position:relative;">
+      <h2 style="margin:0 0 16px;color:#ffffff;font-family:Georgia,serif;font-size:32px;font-weight:400;line-height:1.3;">Welcome to Your New<br/><em style="color:#e5c158;">Dental Home</em></h2>
+      <p style="margin:0;color:rgba(242,249,249,0.85);font-size:15px;font-weight:300;line-height:1.7;max-width:400px;margin-left:auto;margin-right:auto;">
+        Step into a world where advanced dentistry meets the comfort of a luxury lounge. We are thrilled to welcome you to our family.
+      </p>
+    </td>
+  </tr>
+
+  <!-- Body -->
+  <tr>
+    <td style="padding:48px;">
+      <p style="margin:0 0 20px;color:#4b5563;font-size:17px;">Dear <strong>${name}</strong>,</p>
+      <p style="margin:0 0 32px;color:#4b5563;font-size:15px;line-height:1.8;">
+        Thank you for choosing <strong>Seetha Dental Lounge</strong>. Our philosophy is simple: we believe that caring for your smile should be a relaxing, premium, and stress-free experience. From our calming ambiance to our state-of-the-art clinical care, every detail has been designed with your comfort in mind.
+      </p>
+
+      <!-- 3 Features -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 40px;padding-top:24px;border-top:1px solid #f3f4f6;">
+        <tr>
+          <!-- Feature 1 -->
+          <td width="33%" style="padding:0 12px 0 0;vertical-align:top;text-align:center;">
+            <div style="width:56px;height:56px;background:#f2f9f9;border-radius:50%;margin:0 auto 16px;text-align:center;line-height:56px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f4c5c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
+            <p style="margin:0 0 8px;font-family:Georgia,serif;font-size:16px;font-weight:600;color:#0a303a;">Premium Care</p>
+            <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6;">Expert treatments tailored to your unique smile and oral health needs.</p>
+          </td>
+          <!-- Feature 2 -->
+          <td width="33%" style="padding:0 6px;vertical-align:top;text-align:center;">
+            <div style="width:56px;height:56px;background:#f2f9f9;border-radius:50%;margin:0 auto 16px;text-align:center;line-height:56px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f4c5c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M17 8h1a4 4 0 1 1 0 8h-1"></path><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path><line x1="6" y1="2" x2="6" y2="4"></line><line x1="10" y1="2" x2="10" y2="4"></line><line x1="14" y1="2" x2="14" y2="4"></line></svg>
+            </div>
+            <p style="margin:0 0 8px;font-family:Georgia,serif;font-size:16px;font-weight:600;color:#0a303a;">Lounge Comfort</p>
+            <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6;">Relax in our carefully curated spaces designed to eliminate dental anxiety.</p>
+          </td>
+          <!-- Feature 3 -->
+          <td width="33%" style="padding:0 0 0 12px;vertical-align:top;text-align:center;">
+            <div style="width:56px;height:56px;background:#f2f9f9;border-radius:50%;margin:0 auto 16px;text-align:center;line-height:56px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f4c5c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M8.5 11.5 11 14l4-4"></path></svg>
+            </div>
+            <p style="margin:0 0 8px;font-family:Georgia,serif;font-size:16px;font-weight:600;color:#0a303a;">Advanced Tech</p>
+            <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6;">Equipped with the latest technology for precise and painless procedures.</p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px;">
+        <tr><td align="center">
+          <a href="${APP_URL}/patient.html" style="display:inline-block;background:#0f4c5c;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:9999px;font-size:13px;font-weight:500;letter-spacing:1px;text-transform:uppercase;">Login to Your Dashboard</a>
+        </td></tr>
+      </table>
+      <p style="margin:0;text-align:center;font-size:12px;color:#9ca3af;">Or call us at <a href="tel:+918075333723" style="color:#b5952f;">080753 33723</a></p>
+    </td>
+  </tr>
+
+  <!-- Footer -->
+  <tr>
+    <td style="background:#f2f9f9;padding:40px 48px;text-align:center;border-top:1px solid #e0f0f0;">
+      <!-- Social icons -->
+      <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px;">
+        <tr>
+          <td style="padding:0 12px;">
+            <a href="#" style="color:#0f4c5c;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+            </a>
+          </td>
+          <td style="padding:0 12px;">
+            <a href="#" style="color:#0f4c5c;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0 0 4px;font-family:Georgia,serif;font-size:15px;font-weight:600;color:#0a303a;">Seetha Dental Lounge</p>
+      <p style="margin:0 0 16px;font-size:12px;color:#6b7280;">Junction, Paravur<br/>Kerala 691301</p>
+      <p style="margin:0;font-size:10px;color:#9ca3af;line-height:1.6;">
+        You are receiving this email because you recently registered with Seetha Dental Lounge.<br/>
+        &copy; ${new Date().getFullYear()} Seetha Dental Lounge. All rights reserved.
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
 }
 
 // ── Token confirmation email ─────────────────────────────────
@@ -428,4 +454,25 @@ async function sendRecallEmail({ to, name, doctorName, recallDate, recallId }) {
   }
 }
 
-module.exports = { sendWelcome, sendTokenConfirmation, sendOtpEmail, sendRecallEmail };
+async function sendResetOtpEmail({ to, otp }) {
+  const body = `
+    <div style="text-align:center;padding:20px 0 32px;">
+      <p style="margin:0 0 6px;color:#6c757d;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Password Reset</p>
+      <h1 style="margin:0 0 12px;color:#003f87;font-family:Georgia,serif;font-size:32px;font-weight:800;">Reset Your Password</h1>
+      <p style="margin:0 auto 32px;color:#555;font-size:15px;line-height:1.8;max-width:400px;">Use the code below to reset your password. It expires in <strong>10 minutes</strong>.</p>
+      <div style="display:inline-block;background:#003f87;border-radius:16px;padding:28px 48px;margin-bottom:28px;">
+        <p style="margin:0 0 6px;color:rgba(255,255,255,0.55);font-size:10px;letter-spacing:3px;text-transform:uppercase;">Your Reset Code</p>
+        <p style="margin:0;color:#ffffff;font-size:52px;font-weight:900;font-family:Georgia,serif;letter-spacing:12px;line-height:1;">${otp}</p>
+      </div>
+      <p style="margin:0;color:#adb5bd;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
+  try {
+    const res = await sendViaBrevo({ to, subject: `${otp} — Your Seetha Dental Lounge password reset code`, html: layout(`Your password reset code is ${otp}. Valid for 10 minutes.`, body) });
+    console.log('[email] Reset OTP sent to', to, '| messageId:', res.messageId);
+  } catch (err) {
+    console.error('[email] Failed to send reset OTP to', to, '| error:', err.message);
+  }
+}
+
+module.exports = { sendWelcome, sendTokenConfirmation, sendOtpEmail, sendRecallEmail, sendResetOtpEmail };

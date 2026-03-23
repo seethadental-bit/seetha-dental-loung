@@ -108,7 +108,7 @@
                     </div>
                 </div>
                 <div class="flex justify-end">
-                    <a href="#" class="text-xs font-bold text-primary hover:underline">Forgot Password?</a>
+                    <button type="button" onclick="showForgotPassword()" class="text-xs font-bold text-primary hover:underline">Forgot Password?</button>
                 </div>
                 <button type="submit" id="login-btn" class="w-full signature-gradient text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
                     Sign In <span class="material-symbols-outlined text-sm">arrow_forward</span>
@@ -136,6 +136,79 @@
                     Verify & Create Account <span class="material-symbols-outlined text-sm">arrow_forward</span>
                 </button>
                 <p class="text-center text-sm text-slate-400">Didn't receive it? <button onclick="handleResendOtp()" id="resend-btn" class="text-primary font-bold hover:underline">Resend</button></p>
+            </div>
+
+            <!-- Forgot Password Step -->
+            <div id="forgot-step" style="display:none" class="space-y-6">
+                <div class="text-center space-y-2">
+                    <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                        <span class="material-symbols-outlined text-3xl text-primary">lock_reset</span>
+                    </div>
+                    <h3 class="font-headline font-extrabold text-primary text-xl">Forgot Password?</h3>
+                    <p class="text-slate-400 text-sm">Enter your email and we'll send a verification code.</p>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Email Address</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">mail</span>
+                        <input type="email" id="forgot-email" class="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm" placeholder="your@email.com">
+                    </div>
+                </div>
+                <button onclick="handleForgotPassword()" id="forgot-btn" class="w-full signature-gradient text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    Send OTP <span class="material-symbols-outlined text-sm">send</span>
+                </button>
+                <p class="text-center text-sm text-slate-400"><button onclick="showForgotPassword(false)" class="text-primary font-bold hover:underline">Back to Sign In</button></p>
+            </div>
+
+            <!-- Forgot Password OTP Step -->
+            <div id="forgot-otp-step" style="display:none" class="space-y-6">
+                <div class="text-center space-y-2">
+                    <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                        <span class="material-symbols-outlined text-3xl text-primary">mark_email_read</span>
+                    </div>
+                    <h3 class="font-headline font-extrabold text-primary text-xl">Check your email</h3>
+                    <p class="text-slate-400 text-sm" id="reset-otp-hint">We sent a 6-digit code to your email</p>
+                </div>
+                <div class="flex justify-center gap-2">
+                    <input type="text" maxlength="1" class="reset-otp-box w-11 h-14 text-center text-xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:outline-none transition-all" inputmode="numeric"/>
+                    <input type="text" maxlength="1" class="reset-otp-box w-11 h-14 text-center text-xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:outline-none transition-all" inputmode="numeric"/>
+                    <input type="text" maxlength="1" class="reset-otp-box w-11 h-14 text-center text-xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:outline-none transition-all" inputmode="numeric"/>
+                    <input type="text" maxlength="1" class="reset-otp-box w-11 h-14 text-center text-xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:outline-none transition-all" inputmode="numeric"/>
+                    <input type="text" maxlength="1" class="reset-otp-box w-11 h-14 text-center text-xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:outline-none transition-all" inputmode="numeric"/>
+                    <input type="text" maxlength="1" class="reset-otp-box w-11 h-14 text-center text-xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-primary focus:outline-none transition-all" inputmode="numeric"/>
+                </div>
+                <button onclick="handleResetOtpVerify()" id="reset-otp-btn" class="w-full signature-gradient text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    Verify OTP <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+                <p class="text-center text-sm text-slate-400"><button onclick="showForgotPassword()" class="text-primary font-bold hover:underline">Resend OTP</button></p>
+            </div>
+
+            <!-- Set New Password Step -->
+            <div id="reset-step" style="display:none" class="space-y-6">
+                <div class="text-center space-y-2">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto">
+                        <span class="material-symbols-outlined text-3xl text-emerald-600">lock_open</span>
+                    </div>
+                    <h3 class="font-headline font-extrabold text-primary text-xl">Set New Password</h3>
+                    <p class="text-slate-400 text-sm">Choose a strong password for your account.</p>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500">New Password</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">lock</span>
+                        <input type="password" id="new-password" minlength="6" class="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm" placeholder="Min 6 characters">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Confirm Password</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">lock</span>
+                        <input type="password" id="confirm-password" class="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 text-sm" placeholder="Repeat password">
+                    </div>
+                </div>
+                <button onclick="handleSetNewPassword()" id="reset-btn" class="w-full signature-gradient text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    Update Password <span class="material-symbols-outlined text-sm">check_circle</span>
+                </button>
             </div>
 
             <!-- Register Form -->
@@ -178,7 +251,6 @@
 
     <script src="/js/auth.js"></script>
     <script>
-        // Use functions defined in auth.js
         window.addEventListener('load', () => {
             const params = new URLSearchParams(window.location.search);
             if (params.get('mode') === 'register') switchTab('register');
